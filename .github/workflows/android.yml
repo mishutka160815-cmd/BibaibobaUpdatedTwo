@@ -2,10 +2,10 @@ name: Build Bibaiboba APK
 
 on:
   push:
+    branches: [ "main", "arena/**" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -31,19 +31,7 @@ jobs:
         working-directory: Bibaiboba
         run: |
           chmod +x gradlew
-          set +e
-          ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
-          EXIT_CODE=${PIPESTATUS[0]}
-          set -e
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            python3 - <<'PY'
-          with open("build.log", "r", errors="replace") as f:
-              text = f.read()
-          tail = text[-12000:].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-          print(f"::error title=Gradle Build Log::{tail}")
-          PY
-            exit "$EXIT_CODE"
-          fi
+          ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon --stacktrace
           cp app/build/outputs/apk/release/app-release.apk ../Bibaiboba-v1.0.0-release.apk
           cp app/build/outputs/apk/debug/app-debug.apk ../Bibaiboba-v1.0.0-debug.apk
           ls -lh ../Bibaiboba-v1.0.0-*.apk
@@ -63,43 +51,3 @@ jobs:
           path: Bibaiboba-v1.0.0-debug.apk
           archive: false
           if-no-files-found: error
-
-      - name: Export APK blobs for verification
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          python3 - <<'PY'
-          import base64, hashlib, json, os, urllib.request
-
-          repo = os.environ["REPO"]
-          token = os.environ["GH_TOKEN"]
-          manifest = {}
-          CHUNK = 8 * 1024 * 1024
-
-          for fname in ["Bibaiboba-v1.0.0-release.apk", "Bibaiboba-v1.0.0-debug.apk"]:
-              with open(fname, "rb") as f:
-                  data = f.read()
-              sha256 = hashlib.sha256(data).hexdigest()
-              blobs = []
-              for i in range(0, len(data), CHUNK):
-                  part = base64.b64encode(data[i:i+CHUNK]).decode("ascii")
-                  body = json.dumps({"content": part, "encoding": "base64"}).encode("utf-8")
-                  req = urllib.request.Request(
-                      f"https://api.github.com/repos/{repo}/git/blobs",
-                      data=body,
-                      headers={
-                          "Authorization": f"Bearer {token}",
-                          "Accept": "application/vnd.github+json",
-                          "Content-Type": "application/json",
-                          "User-Agent": "bibaiboba-ci",
-                      },
-                      method="POST",
-                  )
-                  with urllib.request.urlopen(req, timeout=60) as resp:
-                      res = json.loads(resp.read().decode("utf-8"))
-                      blobs.append(res["sha"])
-              manifest[fname] = {"size": len(data), "sha256": sha256, "blobs": blobs}
-
-          print("::notice title=APK_BLOBS::" + json.dumps(manifest, separators=(",", ":")))
-          PY
