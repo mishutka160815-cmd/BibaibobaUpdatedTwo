@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Bibaiboba</string>
+    <string name="accessibility_service_description">Bibaiboba использует службу специальных возможностей для выполнения действий на устройстве по вашему запросу: открытие приложений, прокрутка, нажатия и автоматизация задач. Служба активируется только когда вы включаете её в настройках.</string>
+</resources>
