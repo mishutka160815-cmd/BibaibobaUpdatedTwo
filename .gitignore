@@ -1,0 +1,17 @@
+# Gradle & Android build outputs
+.gradle/
+**/build/
+local.properties
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+
+# Built packages & local keystores
+*.apk
+*.aab
+*.apks
+*.keystore
+*.jks
+apk/
